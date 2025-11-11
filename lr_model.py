@@ -1,5 +1,8 @@
 from sklearn.linear_model import LogisticRegression
 from base_model import TunableBaseModel
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
 
 class LogisticRegressionModel(TunableBaseModel):
     
