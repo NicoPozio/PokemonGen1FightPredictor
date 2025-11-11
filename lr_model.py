@@ -1,6 +1,5 @@
 from sklearn.linear_model import LogisticRegression
 from base_model import TunableBaseModel
-from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import randint, loguniform
