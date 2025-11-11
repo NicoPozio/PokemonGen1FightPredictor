@@ -5,8 +5,11 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from config import Config
+from typing import List, Tuple, Dict, Any
 
-# Gen1 Type effectiveness chart
+
+
+
 gen1_defense_chart = {
     'normal': {'Weaknesses': ['fighting'], 'Resistances': [], 'Immunities': ['ghost']},
     'fire': {'Weaknesses': ['water', 'ground', 'rock'], 'Resistances': ['fire', 'grass', 'bug'], 'Immunities': []},
@@ -26,7 +29,9 @@ gen1_defense_chart = {
     'notype': {'Weaknesses': [], 'Resistances': [], 'Immunities': []}
 }
 
-def load_data(file_path: str) -> List[dict]:
+
+
+def load_data(file_path: str) -> List[Dict[str, Any]]:
     """Load JSON lines file with error handling"""
     data = []
     print(f"Loading data from '{file_path}'...")
@@ -44,7 +49,7 @@ def load_data(file_path: str) -> List[dict]:
         
     return data
 
-# Optimized vectorized operations for dynamic features
+#Optimized vectorized operations for dynamic features
 def calculate_summary_stats_vectorized(data_array: np.ndarray) -> Tuple[float, float, float, float, float]:
     """Vectorized summary statistics calculation"""
     if len(data_array) == 0:
@@ -58,9 +63,11 @@ def calculate_summary_stats_vectorized(data_array: np.ndarray) -> Tuple[float, f
         float(np.std(data_array)) if data_array.size > 1 else 0.0
     )
 
-#It's used for hp and fainted, we see how much they variates in the last 10 turns
 def calculate_momentum_vectorized(data_array: np.ndarray, window: int = 10) -> float:
-    """Vectorized momentum calculation"""
+    """
+    Vectorized momentum calculation.
+    It's used for hp and fainted, we see how much they variates in the last 10 turns.
+    """
     if len(data_array) < 2:
         return 0.0
     
@@ -68,54 +75,59 @@ def calculate_momentum_vectorized(data_array: np.ndarray, window: int = 10) -> f
     if start_idx >= len(data_array) - 1:
         return 0.0
     
-    return (data_array[-1] - data_array[start_idx]) / (len(data_array) - 1 - start_idx)
+    # Ensure denominator is not zero if window is too small but array has > 1 element
+    denominator = (len(data_array) - 1 - start_idx)
+    if denominator == 0:
+        return 0.0
+        
+    return (data_array[-1] - data_array[start_idx]) / denominator
+
 
 class FeatureExtractor:
-    """Class containing all methods to abstact features"""
+    """Class containing all methods to abstract features"""
     
     def __init__(self):
-        #The weight of each threat are based on how much that pokemon
-        #was impactful in 1° generation battle
+        # The weight of each threat are based on how much that pokemon
+        # was impactful in 1° generation battle
         self.threat_tiers = {
             'tauros': 3, 'snorlax': 2, 'chansey': 2, 'alakazam': 1,
             'starmie': 1, 'exeggutor': 1, 'rhydon': 1
         }
-        #The types are chosen according to how much they are considered dangerous in 1° gen battle
+        # The types are chosen according to how much they are considered dangerous in 1° gen battle
         self.key_attacking_types = ['ice', 'electric', 'ground', 'rock', 'psychic']
-        #The weight of each status are based on how much each status
-        #was impactful in 1° gen. battle
+        # The weight of each status are based on how much each status
+        # was impactful in 1° gen. battle
         self.status_weights = {
             'frz': 7.0, 'slp': 4.0, 'par': 3.0,
             'brn': 1.5, 'psn': 0.5, 'tox': 0.5
         }
         self.boost_weights = {'spe': 3, 'atk': 2, 'spa': 2, 'def': 1, 'spd': 1}
 
-    #This function calls private methods of the class to compute static feature
-    #static feature are not based on the battle itself but on the nature of the teams
-
-
-   def extract_static_features(self, p1_team: List[dict], p2_lead: dict, timeline: List[dict]) -> dict:
-          """Extract all static features at once"""
-          features = {}
-          
-          # Team stats
-          team_stats = self._compute_team_stats(p1_team)
-          features.update(team_stats)
-          
-          # Type matchups
-          type_scores = self._compute_type_scores(p1_team)
-          features.update(type_scores)
-          
-          # Threat assessment
-          features['p1_threat_score'] = self._compute_threat_score(p1_team, p2_lead, timeline)
-          
-          # Speed advantage
-          features['starting_speed_adv'] = self._compute_speed_advantage(p1_team, p2_lead, timeline)
-          
-          return features
-     
+    def extract_static_features(self, p1_team: List[Dict[str, Any]], p2_lead: Dict[str, Any], timeline: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Extract all static features at once.
+        Static features are not based on the battle itself but on the nature of the teams.
+        """
+        features = {}
+        
+        # Team stats
+        team_stats = self._compute_team_stats(p1_team)
+        features.update(team_stats)
+        
+        # Type matchups
+        type_scores = self._compute_type_scores(p1_team)
+        features.update(type_scores)
+        
+        # Threat assessment
+        features['p1_threat_score'] = self._compute_threat_score(p1_team, p2_lead, timeline)
+        
+        # Speed advantage
+        features['starting_speed_adv'] = self._compute_speed_advantage(p1_team, p2_lead, timeline)
+        
+        return features
     
-  def _compute_team_stats(self, p1_team: List[dict]) -> dict:
+    
+    def _compute_team_stats(self, p1_team: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Vectorized team stats computation"""
         if not p1_team:
             return {f'p1_avg_{k}': 0.0 for k in ['hp', 'atk', 'def', 'spe', 'special', 'crit_rate']}
@@ -129,10 +141,10 @@ class FeatureExtractor:
         
         avg_stats = np.mean(stats_matrix, axis=0)
         
-        # Crit rate calculation
+        # Crit rate calculation (Base Speed / 512 in Gen 1)
         speeds = stats_matrix[:, 3]
         avg_crit_rate = np.mean(speeds / 512.0)
-        high_crit_threats = np.sum(speeds >= 100)
+        high_crit_threats = np.sum(speeds >= 100) # Arbitrary threshold for high-speed threats
         
         return {
             'p1_avg_hp': avg_stats[0],
@@ -145,29 +157,36 @@ class FeatureExtractor:
         }
 
 
-  def _compute_type_scores(self, p1_team: List[dict]) -> dict:
+    def _compute_type_scores(self, p1_team: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Optimized type score computation"""
         scores = {f'p1_score_vs_{atk_type}': 0 for atk_type in self.key_attacking_types}
         
         for pokemon in p1_team:
             types = pokemon.get('types', ['notype', 'notype'])
+            # Ensure types list has at least two elements
+            if len(types) == 1:
+                types.append('notype')
+            elif not types:
+                types = ['notype', 'notype']
+
             for attacking_type in self.key_attacking_types:
                 eff1 = self._get_effectiveness(attacking_type, types[0])
-                eff2 = self._get_effectiveness(attacking_type, types[1])
+                eff2 = self._get_effectiveness(attacking_type, types[1] if types[1] else 'notype')
                 
-                combined_eff = 0.0 if (eff1 == 0.0 or eff2 == 0.0) else eff1 * eff2
+                # Combined effectiveness calculation
+                combined_eff = eff1 * eff2
                 
                 if combined_eff == 0.0:
-                    scores[f'p1_score_vs_{attacking_type}'] += 2
+                    scores[f'p1_score_vs_{attacking_type}'] += 2 # Immunity
                 elif combined_eff < 1.0:
-                    scores[f'p1_score_vs_{attacking_type}'] += 1
+                    scores[f'p1_score_vs_{attacking_type}'] += 1 # Resistance
                 elif combined_eff > 1.0:
-                    scores[f'p1_score_vs_{attacking_type}'] -= 1
+                    scores[f'p1_score_vs_{attacking_type}'] -= 1 # Weakness
         
         return scores
 
 
-  def _get_effectiveness(self, attacking_type: str, defending_type: str) -> float:
+    def _get_effectiveness(self, attacking_type: str, defending_type: str) -> float:
         """Quick type effectiveness lookup"""
         defending_type = defending_type.lower() if defending_type else 'notype'
         attacking_type = attacking_type.lower() if attacking_type else 'notype'
@@ -183,7 +202,7 @@ class FeatureExtractor:
         return 1.0
 
 
-  def _compute_threat_score(self, p1_team: List[dict], p2_lead: dict, timeline: List[dict]) -> int:
+    def _compute_threat_score(self, p1_team: List[Dict[str, Any]], p2_lead: Dict[str, Any], timeline: List[Dict[str, Any]]) -> int:
         """Compute threat differential"""
         p1_names = {p.get('name', '').lower() for p in p1_team}
         p2_names = {p2_lead.get('name', '').lower()}
@@ -199,7 +218,7 @@ class FeatureExtractor:
         
         return p1_score - p2_score
     
-  def _compute_speed_advantage(self, p1_team: List[dict], p2_lead: dict, timeline: List[dict]) -> int:
+    def _compute_speed_advantage(self, p1_team: List[Dict[str, Any]], p2_lead: Dict[str, Any], timeline: List[Dict[str, Any]]) -> int:
         """Compute starting speed advantage"""
         if not timeline:
             return 0
@@ -213,9 +232,11 @@ class FeatureExtractor:
         
         return 0
     
-  #Dynamic features are feature based on the battle itself
-  def extract_dynamic_features(self, timeline: List[dict], p1_team: List[dict]) -> dict:
-        """Extract all dynamic features efficiently"""
+    def extract_dynamic_features(self, timeline: List[Dict[str, Any]], p1_team: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Extract all dynamic features efficiently.
+        Dynamic features are features based on the battle itself.
+        """
         features = {}
         
         # Prepare timeline arrays
@@ -229,14 +250,15 @@ class FeatureExtractor:
             features[f'{name}_max'] = stats[2]
             features[f'{name}_min'] = stats[3]
             features[f'{name}_std'] = stats[4]
-            # Calculate momentum for key features
+            
+        # Calculate momentum for key features
         features['fainted_momentum'] = calculate_momentum_vectorized(timeline_arrays['fainted'])
         features['hpdiff_momentum'] = calculate_momentum_vectorized(timeline_arrays['hpdiff'])
         
         return features
 
 
-  def _build_timeline_arrays(self, timeline: List[dict], p1_team: List[dict]) -> dict:
+    def _build_timeline_arrays(self, timeline: List[Dict[str, Any]], p1_team: List[Dict[str, Any]]) -> Dict[str, np.ndarray]:
         """Build all timeline arrays in a single pass"""
         max_turns = min(len(timeline), Config.MAX_TURNS)
         
@@ -281,7 +303,7 @@ class FeatureExtractor:
             if current_p2_status == 'fnt' and prev_p2_status != 'fnt':
                 p2_kos += 1
             arrays['fainted'][i] = p2_kos - p1_kos
-              
+                
             # HP tracking
             p1_name = p1_state.get('name')
             p2_name = p2_state.get('name')
@@ -293,8 +315,10 @@ class FeatureExtractor:
                 p2_hp_status[p2_name] = p2_state.get('hp_pct', p2_hp_status.get(p2_name, 0.0))
             
             p1_total_hp = sum(v for k, v in p1_hp_status.items() if k in p1_team_names)
+            # Assume opponent has 6 Pokémon unless revealed otherwise
             p2_total_hp = sum(p2_hp_status.values()) + (6 - len(p2_hp_status))
             arrays['hpdiff'][i] = (p1_total_hp / 6.0) - (p2_total_hp / 6.0)
+            
             # Low HP tracking
             p1_low = sum(1 for k, hp in p1_hp_status.items() if k in p1_team_names and 0 < hp < 0.5)
             p2_low = sum(1 for hp in p2_hp_status.values() if 0 < hp < 0.5)
@@ -306,19 +330,27 @@ class FeatureExtractor:
             if p2_name:
                 p2_team_status[p2_name] = current_p2_status
             
-            p1_stat_score = sum(self.status_weights.get(stat, 0) 
-                              for k, stat in p1_team_status.items() if k in p1_team_names)
-            p2_stat_score = sum(self.status_weights.get(stat, 0) 
-                              for stat in p2_team_status.values())
+            p1_stat_score = sum(
+                self.status_weights.get(stat, 0) 
+                for k, stat in p1_team_status.items() if k in p1_team_names
+            )
+            p2_stat_score = sum(
+                self.status_weights.get(stat, 0) 
+                for stat in p2_team_status.values()
+            )
             arrays['status'][i] = p2_stat_score - p1_stat_score
             
             # Boost tracking
             p1_boosts = p1_state.get('boosts', {})
             p2_boosts = p2_state.get('boosts', {})
-            p1_boost_score = sum(self.boost_weights.get(stat, 0) * level 
-                                for stat, level in p1_boosts.items())
-            p2_boost_score = sum(self.boost_weights.get(stat, 0) * level 
-                                for stat, level in p2_boosts.items())
+            p1_boost_score = sum(
+                self.boost_weights.get(stat, 0) * level 
+                for stat, level in p1_boosts.items()
+            )
+            p2_boost_score = sum(
+                self.boost_weights.get(stat, 0) * level 
+                for stat, level in p2_boosts.items()
+            )
             arrays['boost'][i] = p1_boost_score - p2_boost_score
             
             # Move tracking
@@ -357,9 +389,8 @@ class FeatureExtractor:
         return arrays
 
 
-def create_features(data: List[dict]) -> pd.DataFrame:
-    """Main feature creation function with caching"""
-    
+def create_features(data: List[Dict[str, Any]]) -> pd.DataFrame:
+    """Main feature creation function"""
     
     extractor = FeatureExtractor()
     feature_list = []
