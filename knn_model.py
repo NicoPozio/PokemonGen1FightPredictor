@@ -1,5 +1,9 @@
 from sklearn.neighbors import KNeighborsClassifier
 from base_model import TunableBaseModel
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from scipy.stats import randint
+
 
 class KNNModel(TunableBaseModel):
     
