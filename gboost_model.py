@@ -28,7 +28,7 @@ class GradientBoostingModel(TunableBaseModel):
             'model__max_depth': randint(2, 6),
             'model__min_samples_split': randint(2, 20),
             'model__min_samples_leaf': randint(1, 10),
-            'model__subsample': loguniform(0.7, 0.3),        # range: 0.7–1.0
+            'model__subsample': loguniform(0.7, 1.0),        # range: 0.7–1.0
             'model__max_features': ['sqrt', 'log2', None]
         }
         return param_grid
