@@ -1,5 +1,7 @@
 from sklearn.ensemble import RandomForestClassifier
 from base_model import TunableBaseModel
+from sklearn.pipeline import Pipeline
+from scipy.stats import randint, loguniform
 
 class RandomForestModel(TunableBaseModel):
 
