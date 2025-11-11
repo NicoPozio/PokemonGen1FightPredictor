@@ -24,12 +24,12 @@ class GradientBoostingModel(TunableBaseModel):
         """
         param_grid = {
             'model__n_estimators': randint(100, 400),
-            'model__learning_rate': uniform(0.01, 0.2),   # range: 0.01–0.21
+            'model__learning_rate': loguniform(0.01, 0.21),  
             'model__max_depth': randint(2, 6),
             'model__min_samples_split': randint(2, 20),
             'model__min_samples_leaf': randint(1, 10),
-            'model__subsample': loguniform(0.7, 1.0),        # range: 0.7–1.0
-            'model__max_features': ['sqrt', 'log2', None]
+            'model__subsample': loguniform(0.7, 0.3),        # range: 0.7–1.0
+            'model__max_features': ['sqrt']
         }
         return param_grid
 
