@@ -2,7 +2,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import StackingClassifier
 from typing import List
-from scipy.stats import loguniform
+from scipy.stats import loguniform, randint
 from base_model import TunableBaseModel 
 from config import Config
 
