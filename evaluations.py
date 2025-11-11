@@ -86,7 +86,7 @@ def find_optimal_threshold(y_true, y_proba_cv_positive_tuned, y_pred_cv_default,
     return optimal_threshold_tuned
 
 
-def create_submission_file(model_final, X_test, test_df, threshold, tuned_params):
+def create_submission_file(model_final, X_test, test_df, threshold, tuned_params, filename = 'submission.csv'):
     """
     Generates predictions on the test set and creates the submission file.
     
@@ -107,9 +107,8 @@ def create_submission_file(model_final, X_test, test_df, threshold, tuned_params
         Config.TARGET_COLUMN_NAME: final_predictions
     })
 
-    submission_filename = 'submission.csv'
-    submission.to_csv(submission_filename, index=False)
-    print(f"\n{submission_filename} file created successfully!")
+    submission.to_csv(filename, index=False)
+    print(f"\n{filename} file created successfully!")
     
     print("Submission file head:")
     print(submission.head())
