@@ -4,6 +4,10 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import accuracy_score, roc_auc_score, log_loss
 from config import Config
 
+import pandas as pd
+from sklearn.model_selection import RandomizedSearchCV
+import matplotlib.pyplot as plt
+
 class BaseModelTuner:
     def __init__(self, X_train, y_train, cv_strategy, model_list: list):
         self.X_train = X_train
@@ -14,10 +18,11 @@ class BaseModelTuner:
         self.best_params_dict = None
         self.random_state = Config.RANDOM_STATE
 
-
-
-    def tune_models(self, refit_metric='accuracy'):
+def tune_models(self, refit_metric='roc_auc'): # it's best to refit on roc_auc or neg_log_loss instead of accuracy
+        
         pre_tuning_results = []
+        best_params_dict = {} 
+        
         n_iterations = Config.RANDOM_SEARCH_ITER_BASE
     
         print(f"Starting randomized search for {len(self.model_list)} models ({n_iterations} iterations each)...")
@@ -34,7 +39,7 @@ class BaseModelTuner:
                 n_iter=n_iterations,
                 cv=self.cv,
                 scoring=['accuracy', 'roc_auc', 'neg_log_loss'],
-                refit=refit_metric,
+                refit=refit_metric, # This determines random_search.best_score_
                 n_jobs=-1,
                 verbose=1,
                 random_state=self.random_state
@@ -42,38 +47,39 @@ class BaseModelTuner:
     
             random_search.fit(self.X_train, self.y_train)
     
-            # Best estimator after RandomizedSearchCV
-            best_model = random_search.best_estimator_
-    
-            # Generate predictions on full training set for reporting
-            y_pred_proba = best_model.predict_proba(self.X_train)[:, 1]
-            y_pred = (y_pred_proba >= 0.5).astype(int)
-    
-            # Compute all key metrics
-            accuracy = accuracy_score(self.y_train, y_pred)
-            roc_auc = roc_auc_score(self.y_train, y_pred_proba)
-            ll = log_loss(self.y_train, y_pred_proba)
-    
+            
+            best_index = random_search.best_index_
+
+            cv_roc_auc = random_search.cv_results_['mean_test_roc_auc'][best_index]
+            cv_accuracy = random_search.cv_results_['mean_test_accuracy'][best_index]
+            cv_log_loss = -1 * random_search.cv_results_['mean_test_neg_log_loss'][best_index]
+            
+            # This is the score for the chosen refit metric
+            best_cv_score = random_search.best_score_
+            
             best_params_raw = random_search.best_params_
             best_params_cleaned = {key.replace('model__', ''): value for key, value in best_params_raw.items()}
-    
+            
+            best_params_dict[name] = best_params_cleaned
+
             pre_tuning_results.append({
                 'model_name': name,
-                'accuracy': accuracy,
-                'roc_auc': roc_auc,
-                'log_loss': ll,
+                'best_roc_auc_cv': cv_roc_auc,
+                'accuracy_cv': cv_accuracy,
+                'log_loss_cv': cv_log_loss,
                 'best_params': best_params_cleaned
             })
-    
+            
             print(f"Tuning for {name} complete.")
-            print(f"  Refit Metric ({refit_metric}): {random_search.best_score_:.4f}")
-            print(f"  Accuracy: {accuracy:.4f}")
-            print(f"  ROC-AUC: {roc_auc:.4f}")
-            print(f"  LogLoss: {ll:.4f}")
+            print(f"  Best CV Refit Score ({refit_metric}): {best_cv_score:.4f}")
+            print(f"  Mean CV ROC-AUC: {cv_roc_auc:.4f}")
+            print(f"  Mean CV Accuracy: {cv_accuracy:.4f}")
+            print(f"  Mean CV LogLoss: {cv_log_loss:.4f}")
             print(f"  Best Parameters found: {best_params_cleaned}\n")
-    
+                        
         print("Base models tuning completed.")
-        return pre_tuning_results
+        
+        return pre_tuning_results, best_params_dict
 
     def get_results(self):
         """
