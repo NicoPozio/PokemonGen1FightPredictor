@@ -64,7 +64,7 @@ class BaseModelTuner:
     
                 pre_tuning_results.append({
                     'model_name': name,
-                    'best_roc_auc_cv': cv_roc_auc,
+                    'roc_auc_cv': cv_roc_auc,
                     'accuracy_cv': cv_accuracy,
                     'log_loss_cv': cv_log_loss,
                     'best_params': best_params_cleaned
