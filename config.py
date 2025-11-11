@@ -1,3 +1,5 @@
+import os
+
 class Config:
     #Project constants
     RANDOM_STATE = 42
