@@ -24,6 +24,7 @@ gen1_defense_chart = {
     'ghost': {'Weaknesses': ['ghost'], 'Resistances': ['poison', 'bug'], 'Immunities': ['normal', 'fighting']},
     'dragon': {'Weaknesses': ['ice', 'dragon'], 'Resistances': ['fire', 'water', 'electric', 'grass'], 'Immunities': []},
     'notype': {'Weaknesses': [], 'Resistances': [], 'Immunities': []}
+}
 
 def load_data(file_path: str) -> List[dict]:
     """Load JSON lines file with error handling"""
