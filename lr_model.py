@@ -3,6 +3,7 @@ from base_model import TunableBaseModel
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import randint, loguniform
+from typing import List
 
 
 class LogisticRegressionModel(TunableBaseModel):
@@ -16,7 +17,7 @@ class LogisticRegressionModel(TunableBaseModel):
             max_iter=self.max_iter
         )
 
-    def get_param_grid(self) -> dict:
+    def get_param_grid(self) -> List[dict]:
         param_grid = [
             {'model__penalty': ['l1'], 
              'model__C': loguniform(0.01, 100), 
